@@ -4,15 +4,6 @@ const wifi = require('Wifi');
 const devicePrefix = 'house/esp1';
 const mqttServer = '10.1.1.186';
 
-// ensure we are connected to wifi
-wifi.connect('xxxxxxxxxxx', { password: 'xxxxxxxxx'}, function(err) {
-  if (err) {
-    console.log(err);
-  } else {
-    console.log('connected');
-  }
-});
-
 // set up the mqtt connection.  Use getSerial to make
 // sure the mqtt client id is unique
 var options = {
@@ -103,6 +94,13 @@ setInterval(function() {
   }
 }, 200);
 
-
-// ok lets connect and start accepting requests
-client.connect();
+// ensure we are connected to wifi
+wifi.connect('xxxxxxxxxxx', { password: 'xxxxxxxxx'}, function(err) {
+  if (err) {
+    console.log(err);
+  } else {
+    // ok lets start accepting requests
+    client.connect();
+    console.log('connected');
+  }
+});
