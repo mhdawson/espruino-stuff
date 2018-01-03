@@ -93,7 +93,7 @@ client.on('publish', function(message) {
 });
 
 // setup reporting of button state
-const buttonPin = new Pin(0);
+const buttonPin = new Pin(D0);
 let buttonState = 0;
 setInterval(function() {
   let newState = digitalRead(buttonPin);
