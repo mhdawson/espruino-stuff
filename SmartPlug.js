@@ -19,12 +19,18 @@ client.on('connected', function () {
 });
 
 client.on('disconnected', function() {
-  console.log('reconnecting');
+  console.log('mqtt reconnecting');
   setTimeout(function() {
     client.connect();
   }, 1000);
 });
 
+client.on('error', function(err) {
+  console.log('mqtt err' + err);
+  setTimeout(function() {
+    client.connect();
+  }, 1000);
+});
 
 //  setup control of power and led pins
 const powerPin = new Pin(D12);
@@ -94,13 +100,26 @@ setInterval(function() {
   }
 }, 200);
 
-// ensure we are connected to wifi
-wifi.connect('xxxxxxxxxxx', { password: 'xxxxxxxxx'}, function(err) {
-  if (err) {
-    console.log(err);
-  } else {
-    // ok lets start accepting requests
-    client.connect();
-    console.log('connected');
-  }
+
+const doConnect = function() {
+  // ensure we are connected to wifi
+  wifi.connect('xxxxxxxxxxx', { password: 'xxxxxxxxx'}, function(err) {
+    if (err) {
+      console.log(err);
+      // try again
+      setTimeout(doConnect(), 2000);
+    }
+  });
+};
+
+wifi.on('connected', function(details) {
+  // ok lets start accepting requests
+  client.connect();
+  console.log('connected' + details);
 });
+
+wifi.on('disconected', function() {
+  doConnect();
+});
+
+doConnect();
