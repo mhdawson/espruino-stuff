@@ -97,7 +97,13 @@ setInterval(function() {
   if (newState != buttonState) {
     buttonState = newState;
     client.publish(devicePrefix + '/button', newState);
+
+    if (buttonState === 1) {
+      powerState = (powerState + 1) %2;
+      digitalWrite(powerPin, powerState);
+    }
   }
+
 }, 200);
 
 
