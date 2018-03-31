@@ -89,23 +89,20 @@ client.on('publish', function(message) {
   }
 });
 
-// setup reporting of button state
 const buttonPin = new Pin(D0);
-let buttonState = 0;
+let buttonState = 1;
 setInterval(function() {
   let newState = digitalRead(buttonPin);
-  if (newState != buttonState) {
+  if (newState !== buttonState) {
     buttonState = newState;
     client.publish(devicePrefix + '/button', newState);
 
-    if (buttonState === 1) {
+    if (buttonState === 0) {
       powerState = (powerState + 1) %2;
       digitalWrite(powerPin, powerState);
     }
   }
-
 }, 200);
-
 
 const doConnect = function() {
   // ensure we are connected to wifi
