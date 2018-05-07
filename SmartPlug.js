@@ -3,33 +3,62 @@ const wifi = require('Wifi');
 
 const devicePrefix = 'house/esp1';
 const mqttServer = '10.1.1.186';
+const keepAliveInterval = 60;
 
-// set up the mqtt connection.  Use getSerial to make
+// set up the mqtt connection. Use getSerial to make
 // sure the mqtt client id is unique
 var options = {
   client_id: getSerial(),
+  keep_alive: keepAliveInterval
 };
 const client = mqtt.create(mqttServer, options);
 
 client.on('connected', function () {
-  console.log('connected');
-  client.subscribe(devicePrefix + '/led');
-  client.subscribe(devicePrefix + '/power');
-  client.subscribe(devicePrefix + '/query_state');
+  console.log('MQTT client connected');
+  try {
+    client.subscribe(devicePrefix + '/led');
+    client.subscribe(devicePrefix + '/power');
+    client.subscribe(devicePrefix + '/query_state');
+  } catch (err) {}
 });
 
 client.on('disconnected', function() {
-  console.log('mqtt reconnecting');
   setTimeout(function() {
-    client.connect();
-  }, 1000);
+    try {
+      if (client.connected() !== true) {
+        console.log('mqtt reconnecting');
+        client.connect();
+      }
+    } catch (err) {}
+  }, 10000);
 });
 
 client.on('error', function(err) {
   console.log('mqtt err' + err);
   setTimeout(function() {
-    client.connect();
+    try {
+      client.connect();
+    } catch (err) {}
   }, 1000);
+});
+
+// liveness check, interval must be greater than 
+// keepAliveInterval
+let live = false;
+setInterval(() => {
+  if (live === false) {
+    // some kind of connection failure either MQTT server
+    // is down or a communications failure, try resetting
+    // connectivity
+    wifi.disconnect();
+    doConnect();
+  } else {
+    live = false;
+  }
+}, (keepAliveInterval + 30) * 1000);
+
+client.on('ping_reply', ()=> {
+  live = true;
 });
 
 //  setup control of power and led pins
@@ -84,8 +113,10 @@ client.on('publish', function(message) {
     digitalWrite(ledPin, (ledState + 1) % 2);
     console.log('Led state:' + ledState);
   } else if (message.topic === (devicePrefix + '/query_state')) {
-    client.publish(devicePrefix + '/state/power', powerState);
-    client.publish(devicePrefix + '/state/led', ledState);
+    try {
+      client.publish(devicePrefix + '/state/power', powerState);
+      client.publish(devicePrefix + '/state/led', ledState);
+    } catch (err) {}
   }
 });
 
@@ -95,7 +126,9 @@ setInterval(function() {
   let newState = digitalRead(buttonPin);
   if (newState !== buttonState) {
     buttonState = newState;
-    client.publish(devicePrefix + '/button', newState);
+    try {
+      client.publish(devicePrefix + '/button', newState);
+    } catch (err) {}
 
     if (buttonState === 0) {
       powerState = (powerState + 1) %2;
@@ -106,22 +139,31 @@ setInterval(function() {
 
 const doConnect = function() {
   // ensure we are connected to wifi
+  console.log('Trying to connect');
   wifi.connect('xxxxxxxxxxx', { password: 'xxxxxxxxx'}, function(err) {
     if (err) {
+      console.log('Failed to connect');
       console.log(err);
-      // try again
-      setTimeout(doConnect(), 2000);
     }
   });
 };
 
 wifi.on('connected', function(details) {
   // ok lets start accepting requests
-  client.connect();
-  console.log('connected' + details);
+  try {
+    client.connect();
+  } catch (err) {
+    console.log('mqtt failed to connect');
+    console.log(err);
+  }
+  console.log('WIFI connected' + details.toString());
 });
 
-wifi.on('disconected', function() {
+wifi.on('disconnected', function() {
+  try {
+    client.disconnect();
+  } catch (err) {}
+  console.log('WIFI disconnected');
   doConnect();
 });
 
